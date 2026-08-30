@@ -41,15 +41,24 @@ def load_model():
 
 @app.get("/health")
 def health():
+    checkpoint_path = Path(os.environ.get("MODEL_PATH", "checkpoints/best_model.pt"))
+    if not checkpoint_path.exists():
+        return jsonify({"status": "not_ready", "reason": "checkpoint not found"}), 503
     if model is None:
-        return jsonify({"status": "not_ready"}), 503
+        try:
+            load_model()
+        except Exception as e:
+            return jsonify({"status": "not_ready", "reason": str(e)}), 503
     return jsonify({"status": "ok"}), 200
 
 
 @app.post("/predict")
 def predict():
     if model is None:
-        return jsonify({"error": "model not loaded"}), 503
+        try:
+            load_model()
+        except Exception as e:
+            return jsonify({"error": f"model not loaded: {e}"}), 503
 
     if "image" not in request.files:
         return jsonify({"error": "missing 'image' field"}), 400
@@ -69,5 +78,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    load_model()
     app.run(host="0.0.0.0", port=8080)
