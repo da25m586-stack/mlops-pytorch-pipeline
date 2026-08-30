@@ -49,7 +49,10 @@ def test_model_gradients_flow():
 def test_model_num_classes():
     for n in [5, 10, 100]:
         model = get_model(num_classes=n)
+        model.eval()
         x = torch.randn(1, 3, 32, 32)
         with torch.no_grad():
             out = model(x)
         assert out.shape[1] == n
+
+

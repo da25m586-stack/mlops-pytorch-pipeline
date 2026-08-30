@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-training
+  namespace: ml-training
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: trainer
+          image: mlops-train:v1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              if [ -f /app/checkpoints/classifier_v1.pt ]; then
+                echo '{"event": "skipped", "reason": "checkpoint already exists"}'
+              else
+                python src/train.py --config /app/configs/training_config.yaml
+              fi
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/configs
+            - name: data-pvc
+              mountPath: /app/data
+            - name: checkpoints-pvc
+              mountPath: /app/checkpoints
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      volumes:
+        - name: config-volume
+          configMap:
+            name: training-config
+        - name: data-pvc
+          persistentVolumeClaim:
+            claimName: training-data-pvc
+        - name: checkpoints-pvc
+          persistentVolumeClaim:
+            claimName: checkpoints-pvc
